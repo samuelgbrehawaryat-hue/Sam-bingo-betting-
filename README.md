@@ -1,0 +1,24 @@
+# Sam Bingo Platform — starter
+
+This is a first frontend + Supabase-auth starter, not a finished real-money betting service.
+
+## Included
+- Responsive React/Vite website
+- Email sign-up and sign-in UI (requires Supabase configuration)
+- Initial profile table and basic row-level security policy
+- Placeholder navigation for Bingo, Keno, Aviator and Football
+
+## Run locally
+1. Install Node.js 20 or newer.
+2. Run `npm install`.
+3. Copy `.env.example` to `.env`.
+4. Create a Supabase project and set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
+5. Run `npm run dev`.
+
+## Supabase
+Run `supabase/schema.sql` in the Supabase SQL Editor. Authentication email confirmation settings are controlled in Supabase.
+
+## Not implemented yet
+No real wallet, deposits, withdrawals, payment verification, screenshot storage, game settlement, referral rewards, admin dashboard, or Telegram notifications are implemented yet. Do not accept or deposit real money using this starter.
+
+Before any real-money launch, obtain applicable legal authorization and payment-provider approval. Implement server-side ledger transactions, strict admin authorization, audit logs, secure upload policies, and independently tested game logic. Never put a service-role key or Telegram bot token in frontend code. Put secrets only in backend environment variables. Rotate any Telegram bot token that was previously pasted or published.
