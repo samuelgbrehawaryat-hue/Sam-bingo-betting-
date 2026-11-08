@@ -1,3 +1,4 @@
+
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Ethiopic:wght@400;500;600;700;800&display=swap');
 
 :root {
@@ -229,5 +230,9 @@ footer {
 
   .status {
     font-size: 8px;
+  }
+
+  .actions button {
+    flex: 1;
   }
 }
