@@ -1,16 +1,16 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase.js";
 
-
 export default function App() {
   const [tab, setTab] = useState("home");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
-const [busy, setBusy] = useState(false);
-const [isAdmin, setIsAdmin] = useState(false);
-const [session, setSession] = useState(null);
-const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
     if (!supabase) {
       setLoading(false);
@@ -31,53 +31,63 @@ const [loading, setLoading] = useState(true);
     return () => data.subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    let active = true;
 
- useEffect(() => {
-  let active = true;
+    async function checkAdmin() {
+      if (!session?.user?.id || !supabase) {
+        setIsAdmin(false);
+        return;
+      }
 
-  async function checkAdmin() {
-    if (!session?.user?.id || !supabase) {
-      setIsAdmin(false);
-      return;
+      const { data, error } = await supabase
+        .from("admin_users")
+        .select("user_id")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+
+      if (active) {
+        setIsAdmin(!error && !!data);
+      }
     }
 
-    const { data, error } = await supabase
-      .from("admin_users")
-      .select("user_id")
-      .eq("user_id", session.user.id)
-      .maybeSingle();
+    checkAdmin();
 
-    if (active) {
-      setIsAdmin(!error && !!data);
-    }
-  }
-
-  checkAdmin();
-
-  return () => {
-    active = false;
-  };
-}, [session]);
-
+    return () => {
+      active = false;
+    };
+  }, [session]);
 
   async function signUp() {
-    if (!supabase) return setMessage("Supabase አልተዋቀረም።");
+    if (!supabase) {
+      return setMessage("Supabase አልተዋቀረም።");
+    }
+
     setBusy(true);
+
     const { error } = await supabase.auth.signUp({
       email,
       password
     });
+
     setBusy(false);
-    setMessage(error ? error.message : "የመመዝገቢያ ጥያቄ ተልኳል።");
+    setMessage(
+      error ? error.message : "የመመዝገቢያ ጥያቄ ተልኳል።"
+    );
   }
 
   async function signIn() {
-    if (!supabase) return setMessage("Supabase አልተዋቀረም።");
+    if (!supabase) {
+      return setMessage("Supabase አልተዋቀረም።");
+    }
+
     setBusy(true);
+
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password
     });
+
     setBusy(false);
     setMessage(error ? error.message : "ገብተሃል።");
   }
@@ -89,14 +99,38 @@ const [loading, setLoading] = useState(true);
   }
 
   const games = [
-    { id: "bingo", name: "BINGO", icon: "🎯", desc: "የBingo ጨዋታ" },
-    { id: "keno", name: "KENO", icon: "🎲", desc: "የKeno ጨዋታ" },
-    { id: "aviator", name: "AVIATOR", icon: "✈️", desc: "የAviator ጨዋታ" },
-    { id: "football", name: "FOOTBALL", icon: "⚽", desc: "የእግር ኳስ" }
+    {
+      id: "bingo",
+      name: "BINGO",
+      icon: "🎯",
+      desc: "የBingo ጨዋታ"
+    },
+    {
+      id: "keno",
+      name: "KENO",
+      icon: "🎲",
+      desc: "የKeno ጨዋታ"
+    },
+    {
+      id: "aviator",
+      name: "AVIATOR",
+      icon: "✈️",
+      desc: "የAviator ጨዋታ"
+    },
+    {
+      id: "football",
+      name: "FOOTBALL",
+      icon: "⚽",
+      desc: "የእግር ኳስ"
+    }
   ];
 
   if (loading) {
-    return <main className="shell"><h2>እየጫነ ነው...</h2></main>;
+    return (
+      <main className="shell">
+        <h2>እየጫነ ነው...</h2>
+      </main>
+    );
   }
 
   return (
@@ -109,6 +143,7 @@ const [loading, setLoading] = useState(true);
             <small>Games • Community • Competition</small>
           </div>
         </div>
+
         <span className="status">
           {session ? "PLAYER DASHBOARD" : "STARTER VERSION"}
         </span>
@@ -117,12 +152,22 @@ const [loading, setLoading] = useState(true);
       {!session ? (
         <>
           <section className="hero">
-            <div className="eyebrow">WELCOME TO THE PLATFORM</div>
+            <div className="eyebrow">
+              WELCOME TO THE PLATFORM
+            </div>
+
             <h1>ጨዋታውን በአንድ ቦታ</h1>
-            <p>የSam Bingo Platform የመጀመሪያ የድረገጽ መሠረት።</p>
+
+            <p>
+              የSam Bingo Platform የመጀመሪያ የድረገጽ መሠረት።
+            </p>
+
             <div className="tiles">
               {games.map(game => (
-                <button key={game.id} onClick={() => setTab(game.id)}>
+                <button
+                  key={game.id}
+                  onClick={() => setTab(game.id)}
+                >
                   {game.name}
                 </button>
               ))}
@@ -131,41 +176,70 @@ const [loading, setLoading] = useState(true);
 
           <section className="panel">
             <h2>መለያ ፍጠር / ግባ</h2>
+
             <label>Email</label>
+
             <input
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
               placeholder="name@example.com"
             />
+
             <label>Password</label>
+
             <input
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
               placeholder="ቢያንስ 6 ቁምፊ"
             />
+
             <div className="actions">
-              <button className="primary" disabled={busy} onClick={signUp}>
+              <button
+                className="primary"
+                disabled={busy}
+                onClick={signUp}
+              >
                 መለያ ፍጠር
               </button>
-              <button className="secondary" disabled={busy} onClick={signIn}>
+
+              <button
+                className="secondary"
+                disabled={busy}
+                onClick={signIn}
+              >
                 ግባ
               </button>
             </div>
-            {message && <p className="message">{message}</p>}
+
+            {message && (
+              <p className="message">{message}</p>
+            )}
           </section>
         </>
       ) : (
         <>
           <section className="hero">
-            <div className="eyebrow">PLAYER ACCOUNT</div>
+            <div className="eyebrow">
+              PLAYER ACCOUNT
+            </div>
+
             <h1>እንኳን ደህና መጣህ!</h1>
+
             <p>{session.user.email}</p>
           </section>
 
+          {isAdmin && (
+            <section className="panel">
+              <h2>ADMIN PANEL</h2>
+              <p>የባለቤት መቆጣጠሪያ ክፍል</p>
+            </section>
+          )}
+
           <section className="panel">
             <h2>የተጫዋች ዳሽቦርድ</h2>
+
             <div className="tiles">
               <div className="panel">
                 <h3>ባላንስ</h3>
@@ -175,6 +249,7 @@ const [loading, setLoading] = useState(true);
             </div>
 
             <h3>ጨዋታ ምረጥ</h3>
+
             <div className="tiles">
               {games.map(game => (
                 <button
@@ -188,15 +263,24 @@ const [loading, setLoading] = useState(true);
 
             {tab !== "home" && (
               <div className="panel">
-                <h2>{games.find(g => g.id === tab)?.name}</h2>
-                <p>ይህ የጨዋታ ክፍል በቀጣይ ይገነባል።</p>
+                <h2>
+                  {games.find(g => g.id === tab)?.name}
+                </h2>
+
+                <p>
+                  ይህ የጨዋታ ክፍል በቀጣይ ይገነባል።
+                </p>
+
                 <button onClick={() => setTab("home")}>
                   ወደ ዳሽቦርድ ተመለስ
                 </button>
               </div>
             )}
 
-            <button className="secondary" onClick={signOut}>
+            <button
+              className="secondary"
+              onClick={signOut}
+            >
               ውጣ
             </button>
           </section>
@@ -205,6 +289,7 @@ const [loading, setLoading] = useState(true);
 
       <section className="notice">
         <b>አስፈላጊ ማስታወሻ</b>
+
         <p>
           ይህ የመጀመሪያ ቴክኒካዊ መሠረት ነው።
           እውነተኛ ገንዘብ ከመጠቀም በፊት
@@ -212,7 +297,9 @@ const [loading, setLoading] = useState(true);
         </p>
       </section>
 
-      <footer>© 2026 Sam Bingo Platform</footer>
+      <footer>
+        © 2026 Sam Bingo Platform
+      </footer>
     </main>
   );
 }
