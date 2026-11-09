@@ -31,8 +31,32 @@ const [loading, setLoading] = useState(true);
     return () => data.subscription.unsubscribe();
   }, []);
 
-useEffect(() => {
-  // Admin code
+
+ useEffect(() => {
+  let active = true;
+
+  async function checkAdmin() {
+    if (!session?.user?.id || !supabase) {
+      setIsAdmin(false);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("admin_users")
+      .select("user_id")
+      .eq("user_id", session.user.id)
+      .maybeSingle();
+
+    if (active) {
+      setIsAdmin(!error && !!data);
+    }
+  }
+
+  checkAdmin();
+
+  return () => {
+    active = false;
+  };
 }, [session]);
 
 
