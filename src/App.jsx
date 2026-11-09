@@ -7,10 +7,10 @@ export default function App() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [loading, setLoading] = useState(true);
-
+const [busy, setBusy] = useState(false);
+const [isAdmin, setIsAdmin] = useState(false);
+const [session, setSession] = useState(null);
+const [loading, setLoading] = useState(true);
   useEffect(() => {
     if (!supabase) {
       setLoading(false);
