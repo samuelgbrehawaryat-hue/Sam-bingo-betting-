@@ -31,6 +31,11 @@ const [loading, setLoading] = useState(true);
     return () => data.subscription.unsubscribe();
   }, []);
 
+useEffect(() => {
+  // Admin code
+}, [session]);
+
+
   async function signUp() {
     if (!supabase) return setMessage("Supabase አልተዋቀረም።");
     setBusy(true);
