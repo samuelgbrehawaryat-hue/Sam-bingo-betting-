@@ -1,7 +1,5 @@
 # Sam Bingo Platform — starter
-
 This is a first frontend + Supabase-auth starter, not a finished real-money betting service.
-
 ## Included
 - Responsive React/Vite website
 - Email sign-up and sign-in UI (requires Supabase configuration)
