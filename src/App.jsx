@@ -10,7 +10,8 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
-
+  const [players, setPlayers] = useState([]);
+  const [playersError, setPlayersError] = useState("");
   useEffect(() => {
     if (!supabase) {
       setLoading(false);
@@ -57,6 +58,31 @@ export default function App() {
       active = false;
     };
   }, [session]);
+    useEffect(() => {
+    if (!isAdmin || !supabase) {
+      setPlayers([]);
+      return;
+    }
+
+    async function loadPlayers() {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("public_user_id, display_name, email, created_at")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        setPlayersError(error.message);
+        return;
+      }
+
+      setPlayersError("");
+      setPlayers(data || []);
+    }
+
+    loadPlayers();
+  }, [isAdmin]);
+
+  
 
   async function signUp() {
     if (!supabase) {
@@ -234,6 +260,29 @@ export default function App() {
             <section className="panel">
               <h2>ADMIN PANEL</h2>
               <p>የባለቤት መቆጣጠሪያ ክፍል</p>
+<h3>የተመዘገቡ ተጫዋቾች</h3>
+              
+{playersError && (
+  <p className="message">{playersError}</p>
+)}
+
+{players.length === 0 ? (
+  <p>ምንም ተጫዋች አልተገኘም።</p>
+) : (
+  <div>
+    {players.map((player, index) => (
+      <div className="panel" key={player.public_user_id}>
+        <h3>ተጫዋች #{index + 1}</h3>
+        <p>መለያ: {player.public_user_id}</p>
+        <p>ስም: {player.display_name || "አልተገለጸም"}</p>
+        <p>Email: {player.email || "የለም"}</p>
+        <small>
+          የተመዘገበበት: {new Date(player.created_at).toLocaleString()}
+        </small>
+      </div>
+    ))}
+  </div>
+)}
             </section>
           )}
 
