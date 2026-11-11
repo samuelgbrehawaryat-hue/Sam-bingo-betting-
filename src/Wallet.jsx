@@ -4,12 +4,14 @@ import { supabase } from './supabase';
 export default function Wallet({ user }) {
   const [balance, setBalance] = useState(0);
   const [amount, setAmount] = useState(100);
-  const [type, setType] = useState('deposit');
+  const [type, setType] = useState('deposit'); // 'deposit' (ገንዘብ ማስገባት) ወይም 'withdraw' (ማውጣት)
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [history, setHistory] = useState([]);
 
   useEffect(() => {
     fetchBalance();
+    fetchHistory();
   }, []);
 
   const fetchBalance = async () => {
@@ -17,9 +19,19 @@ export default function Wallet({ user }) {
     setBalance(data || 0);
   };
 
+  const fetchHistory = async () => {
+    const { data } = await supabase
+      .from('deposits_withdrawals')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+    setHistory(data || []);
+  };
+
   const handleRequest = async (e) => {
     e.preventDefault();
-    if (amount < 10) return setMessage("ቢያንስ 10 ETB ማስገባት አለብህ።");
+    if (amount < 10) return setMessage("❌ ቢያንስ 10 ETB መሆን አለበት።");
+    if (type === 'withdraw' && amount > balance) return alert("❌ ባላንስህ ከጠየቁት ገንዘብ ያንሳል!");
     
     setLoading(true);
     setMessage('');
@@ -33,58 +45,102 @@ export default function Wallet({ user }) {
     }]);
 
     if (error) {
-      setMessage("ስህተት ተፈጥሯል። እንደገና ሞክር።");
+      setMessage("❌ ስህተት ተፈጥሯል። እንደገና ሞክር።");
     } else {
-      setMessage(`የ${type === 'deposit' ? 'ማስገቢያ' : 'ማውጫ'} ጥያቄህ ተልኳል! አስተዳዳሪው ሲያጸድቀው ባላንስህ ይለወጣል።`);
+      setMessage(`✅ የ${type === 'deposit' ? 'ገንዘብ ማስገባት' : 'ገንዘብ ማውጣት'} ጥያቄዎ በተሳካ ሁኔታ ተልኳል!`);
+      setAmount(100);
+      fetchBalance();
+      fetchHistory();
     }
     setLoading(false);
   };
 
   return (
-    <div style={{ padding: '20px', maxWidth: '500px', margin: '0 auto' }}>
+    <div style={{ backgroundColor: '#121212', minHeight: '100vh', padding: '15px', color: '#fff', fontFamily: 'sans-serif' }}>
       
-      {/* የባላንስ ማሳያ */}
-      <div style={{ backgroundColor: '#1e1e1e', color: '#4CAF50', padding: '20px', borderRadius: '10px', textAlign: 'center', marginBottom: '20px', border: '1px solid #333' }}>
-        <h3 style={{ margin: 0, color: '#fff' }}>የአሁኑ ባላንስህ</h3>
-        <h1 style={{ fontSize: '2.5rem', margin: '10px 0' }}>{balance.toFixed(2)} ETB</h1>
+      {/*  തലጌ (Header & Balance) */}
+      <div style={{ backgroundColor: '#1e1e1e', padding: '20px', borderRadius: '12px', marginBottom: '20px', textAlign: 'center', border: '1px solid #333' }}>
+        <h3 style={{ margin: '0 0 10px 0', color: '#aaa' }}>የእርስዎ የኪስ ቦርሳ (Wallet)</h3>
+        <h1 style={{ margin: 0, color: '#ffc107', fontSize: '32px' }}>{balance.toFixed(2)} ETB</h1>
       </div>
 
-      <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '10px', color: '#000' }}>
-        <h3>💰 ገንዘብ ማስገባት / ማውጣት</h3>
+      {/* የጥያቄ ማቅረቢያ ፎርም */}
+      <div style={{ backgroundColor: '#1e1e1e', padding: '20px', borderRadius: '12px', marginBottom: '20px', border: '1px solid #333' }}>
+        <h3 style={{ marginTop: 0, color: '#fff' }}>ገንዘብ ያስገቡ / ያውጡ</h3>
         
-        {/* የክፍያ መንገዶች መረጃ */}
-        <div style={{ backgroundColor: '#f0f8ff', padding: '10px', borderRadius: '5px', marginBottom: '15px', fontSize: '14px', borderLeft: '4px solid #2196F3' }}>
-          <p style={{ margin: '0 0 5px 0' }}><strong>📌 የማስገቢያ መንገዶች፦</strong></p>
-          <p style={{ margin: '0' }}>📱 CBE Birr / Telebirr: <strong>098 397 6380</strong></p>
-          <p style={{ margin: '5px 0 0 0', color: '#666' }}><i>ገንዘብ ካስገባህ በኋላ የደረሰኙን (Screenshot) አስቀምጠህ ትርፍ ላይ ያለውን ያረጋግጥ።</i></p>
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+          <button 
+            type="button" 
+            onClick={() => setType('deposit')} 
+            style={{ flex: 1, padding: '10px', backgroundColor: type === 'deposit' ? '#4CAF50' : '#333', color: '#fff', border: 'none', borderRadius: '5px', fontWeight: 'bold', cursor: 'pointer' }}>
+            ገንዘብ ማስገባት (Deposit)
+          </button>
+          <button 
+            type="button" 
+            onClick={() => setType('withdraw')} 
+            style={{ flex: 1, padding: '10px', backgroundColor: type === 'withdraw' ? '#f44336' : '#333', color: '#fff', border: 'none', borderRadius: '5px', fontWeight: 'bold', cursor: 'pointer' }}>
+            ገንዘብ ማውጣት (Withdraw)
+          </button>
         </div>
 
-        <form onSubmit={handleRequest} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-          <div>
-            <label style={{ fontWeight: 'bold' }}>አይነት ምረጥ፦</label>
-            <select value={type} onChange={(e) => setType(e.target.value)} style={{ width: '100%', padding: '10px', marginTop: '5px', borderRadius: '5px' }}>
-              <option value="deposit">ገንዘብ አስገባ (Deposit)</option>
-              <option value="withdrawal">ገንዘብ አውጣ (Withdraw)</option>
-            </select>
+        <form onSubmit={handleRequest}>
+          <label style={{ display: 'block', marginBottom: '8px', color: '#bbb' }}>መጠን (ETB)</label>
+          <input 
+            type="number" 
+            value={amount} 
+            onChange={(e) => setAmount(Number(e.target.value))} 
+            style={{ width: '100%', padding: '12px', borderRadius: '5px', border: '1px solid #444', backgroundColor: '#222', color: '#fff', fontSize: '16px', marginBottom: '10px', boxSizing: 'border-box' }} 
+          />
+
+          {/* ፈጣን የምርጫ አቋራጮች */}
+          <div style={{ display: 'flex', gap: '5px', marginBottom: '15px' }}>
+            {[100, 500, 1000, 5000].map((amt) => (
+              <button 
+                key={amt} 
+                type="button" 
+                onClick={() => setAmount(amt)} 
+                style={{ padding: '6px 12px', backgroundColor: amount === amt ? '#ffc107' : '#333', color: amount === amt ? '#000' : '#fff', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
+                {amt}
+              </button>
+            ))}
           </div>
 
-          <div>
-            <label style={{ fontWeight: 'bold' }}>መጠን (ETB)፦</label>
-            <input 
-              type="number" 
-              value={amount} 
-              onChange={(e) => setAmount(Number(e.target.value))}
-              style={{ width: '100%', padding: '10px', marginTop: '5px', borderRadius: '5px', border: '1px solid #ccc' }}
-            />
-          </div>
-
-          <button type="submit" disabled={loading} style={{ padding: '15px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '5px', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer' }}>
-            {loading ? 'በመላክ ላይ...' : 'ጥያቄ አስገባ'}
+          <button 
+            type="submit" 
+            disabled={loading} 
+            style={{ width: '100%', padding: '12px', backgroundColor: type === 'deposit' ? '#4CAF50' : '#f44336', color: '#fff', border: 'none', borderRadius: '5px', fontWeight: 'bold', cursor: 'pointer', fontSize: '16px' }}>
+            {loading ? 'በመላክ ላይ...' : type === 'deposit' ? 'ጥያቄ ላክ (Deposit)' : 'ማውጣት ጥያቄ ላክ (Withdraw)'}
           </button>
         </form>
 
-        {message && <p style={{ marginTop: '15px', color: message.includes('ተልኳል') ? 'green' : 'red', textAlign: 'center' }}>{message}</p>}
+        {message && <p style={{ marginTop: '15px', textAlign: 'center', fontWeight: 'bold' }}>{message}</p>}
       </div>
+
+      {/* የክፍያ ታሪክ (History) */}
+      <div style={{ backgroundColor: '#1e1e1e', padding: '20px', borderRadius: '12px', border: '1px solid #333' }}>
+        <h3 style={{ marginTop: 0, color: '#fff' }}>የክፍያ ታሪክ</h3>
+        {history.length === 0 ? (
+          <p style={{ color: '#888', textAlign: 'center' }}>ምንም የግብይት ታሪክ የለም።</p>
+        ) : (
+          history.map((item) => (
+            <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid #333', fontSize: '14px' }}>
+              <div>
+                <span style={{ color: item.type === 'deposit' ? '#4CAF50' : '#f44336', fontWeight: 'bold' }}>
+                  {item.type === 'deposit' ? '📥 ማስገባት' : '📤 ማውጣት'}
+                </span>
+                <p style={{ margin: '3px 0 0 0', color: '#aaa', fontSize: '12px' }}>{new Date(item.created_at).toLocaleString()}</p>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <b style={{ color: '#fff' }}>{item.amount} ETB</b>
+                <p style={{ margin: '3px 0 0 0', color: item.status === 'approved' ? '#4CAF50' : item.status === 'rejected' ? '#f44336' : '#ffc107', fontSize: '12px', textTransform: 'uppercase' }}>
+                  {item.status}
+                </p>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
     </div>
   );
 }
