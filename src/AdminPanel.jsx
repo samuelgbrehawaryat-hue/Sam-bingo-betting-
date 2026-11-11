@@ -6,6 +6,14 @@ export default function AdminPanel({ user }) {
   const [matches, setMatches] = useState([]);
   const [activeTab, setActiveTab] = useState('wallet');
 
+  // አዲስ ጨዋታ ለመጨመር የሚያስፈልጉ ስቴቶች (States)
+  const [homeTeam, setHomeTeam] = useState('');
+  const [awayTeam, setAwayTeam] = useState('');
+  const [league, setLeague] = useState('');
+  const [oddsHome, setOddsHome] = useState(2.00);
+  const [oddsDraw, setOddsDraw] = useState(3.20);
+  const [oddsAway, setOddsAway] = useState(3.00);
+
   useEffect(() => {
     fetchRequests();
     fetchMatches();
@@ -47,7 +55,37 @@ export default function AdminPanel({ user }) {
   };
 
   // ==========================================
-  // 2. የጨዋታ ውጤት ማስገባት እና ገንዘብ መክፈል
+  // 2. አዲስ የእግር ኳስ ጨዋታ መጨመር
+  // ==========================================
+  const handleAddMatch = async (e) => {
+    e.preventDefault();
+    if (!homeTeam || !awayTeam || !league) {
+      return alert("እባክህ ሁሉንም መስኮች ሙሉ!");
+    }
+
+    const { error } = await supabase.from('football_matches').insert([{
+      home_team: homeTeam,
+      away_team: awayTeam,
+      league: league,
+      odds_home: Number(oddsHome),
+      odds_draw: Number(oddsDraw),
+      odds_away: Number(oddsAway),
+      status: 'upcoming'
+    }]);
+
+    if (error) {
+      alert("ጨዋታውን መመዝገብ አልተቻለም።");
+    } else {
+      alert("✅ ጨዋታው በተሳካ ሁኔታ ተመዝግቧል!");
+      setHomeTeam('');
+      setAwayTeam('');
+      setLeague('');
+      fetchMatches();
+    }
+  };
+
+  // ==========================================
+  // 3. የጨዋታ ውጤት ማስገባት እና ገንዘብ መክፈል
   // ==========================================
   const handleMatchResult = async (matchId, result) => {
     if (!window.confirm("እርግጠኛ ነህ? ውጤቱን ስታስገባ ለአሸናፊዎች ገንዘብ በራስ-ሰር ይከፈላል።")) return;
@@ -80,32 +118,33 @@ export default function AdminPanel({ user }) {
   };
 
   return (
-    <div style={{ padding: '20px', backgroundColor: '#1a1a2e', minHeight: '100vh', color: 'white' }}>
+    <div style={{ padding: '20px', backgroundColor: '#1a1a2e', minHeight: '100vh', color: 'white', fontFamily: 'sans-serif' }}>
       <h1 style={{ color: '#e94560', textAlign: 'center' }}>👑 Admin Control Panel</h1>
       
       {/* የታብ መቀየሪያ ቁልፎች */}
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', marginBottom: '30px' }}>
-        <button onClick={() => setActiveTab('wallet')} style={{ padding: '10px 20px', backgroundColor: activeTab === 'wallet' ? '#e94560' : '#333', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>💰 የገንዘብ ጥያቄዎች</button>
-        <button onClick={() => setActiveTab('results')} style={{ padding: '10px 20px', backgroundColor: activeTab === 'results' ? '#e94560' : '#333', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>⚽ የጨዋታ ውጤቶች</button>
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginBottom: '30px', flexWrap: 'wrap' }}>
+        <button onClick={() => setActiveTab('wallet')} style={{ padding: '10px 20px', backgroundColor: activeTab === 'wallet' ? '#e94560' : '#333', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>💰 የገንዘብ ጥያቄዎች</button>
+        <button onClick={() => setActiveTab('add_match')} style={{ padding: '10px 20px', backgroundColor: activeTab === 'add_match' ? '#e94560' : '#333', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>⚽ ጨዋታ ጨምር</button>
+        <button onClick={() => setActiveTab('results')} style={{ padding: '10px 20px', backgroundColor: activeTab === 'results' ? '#e94560' : '#333', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>📊 ውጤት ማስገባት</button>
       </div>
 
       {/* የገንዘብ ጥያቄዎች ገጽ */}
       {activeTab === 'wallet' && (
         <div>
           <h3>የገንዘብ ጥያቄዎች (Pending Requests)</h3>
-          {requests.length === 0 ? <p>ምንም ጥያቄ የለም።</p> : (
+          {requests.length === 0 ? <p style={{ color: '#aaa' }}>ምንም ጥያቄ የለም።</p> : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {requests.map(req => (
-                <div key={req.id} style={{ backgroundColor: '#16213e', padding: '15px', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div key={req.id} style={{ backgroundColor: '#16213e', padding: '15px', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #333' }}>
                   <div>
                     <p style={{ margin: 0, fontSize: '12px', color: '#aaa' }}>User ID: {req.user_id.substring(0, 8)}...</p>
-                    <p style={{ margin: 0, color: req.type === 'deposit' ? '#4CAF50' : '#f44336', fontWeight: 'bold' }}>
+                    <p style={{ margin: '5px 0 0 0', color: req.type === 'deposit' ? '#4CAF50' : '#f44336', fontWeight: 'bold', fontSize: '16px' }}>
                       {req.type.toUpperCase()}: {req.amount} ETB
                     </p>
                   </div>
                   <div style={{ display: 'flex', gap: '10px' }}>
-                    <button onClick={() => handleTransaction(req.id, req.user_id, req.amount, req.type, 'approve')} style={{ padding: '10px 20px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>Approve</button>
-                    <button onClick={() => handleTransaction(req.id, req.user_id, req.amount, req.type, 'reject')} style={{ padding: '10px 20px', backgroundColor: '#f44336', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>Reject</button>
+                    <button onClick={() => handleTransaction(req.id, req.user_id, req.amount, req.type, 'approve')} style={{ padding: '8px 15px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>Approve</button>
+                    <button onClick={() => handleTransaction(req.id, req.user_id, req.amount, req.type, 'reject')} style={{ padding: '8px 15px', backgroundColor: '#f44336', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>Reject</button>
                   </div>
                 </div>
               ))}
@@ -114,19 +153,58 @@ export default function AdminPanel({ user }) {
         </div>
       )}
 
+      {/* አዲስ ጨዋታ የመጨመር ገጽ */}
+      {activeTab === 'add_match' && (
+        <div style={{ backgroundColor: '#16213e', padding: '20px', borderRadius: '10px', maxWidth: '600px', margin: '0 auto', border: '1px solid #333' }}>
+          <h3 style={{ marginTop: 0, color: '#e94560' }}>አዲስ የእግር ኳስ ጨዋታ መዝግብ</h3>
+          <form onSubmit={handleAddMatch}>
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', marginBottom: '5px', color: '#ccc' }}>ሊግ (League)</label>
+              <input type="text" value={league} onChange={e => setLeague(e.target.value)} placeholder="ለምሳሌ: English Premier League" style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid #444', backgroundColor: '#222', color: '#fff', boxSizing: 'border-box' }} />
+            </div>
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', marginBottom: '5px', color: '#ccc' }}>አስተናጋጅ ቡድን (Home Team)</label>
+                <input type="text" value={homeTeam} onChange={e => setHomeTeam(e.target.value)} placeholder="Arsenal" style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid #444', backgroundColor: '#222', color: '#fff', boxSizing: 'border-box' }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', marginBottom: '5px', color: '#ccc' }}>ተጋጣሚ ቡድን (Away Team)</label>
+                <input type="text" value={awayTeam} onChange={e => setAwayTeam(e.target.value)} placeholder="Chelsea" style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid #444', backgroundColor: '#222', color: '#fff', boxSizing: 'border-box' }} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', marginBottom: '5px', color: '#ccc' }}>Odds (Home - W1)</label>
+                <input type="number" step="0.01" value={oddsHome} onChange={e => setOddsHome(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid #444', backgroundColor: '#222', color: '#fff', boxSizing: 'border-box' }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', marginBottom: '5px', color: '#ccc' }}>Odds (Draw - X)</label>
+                <input type="number" step="0.01" value={oddsDraw} onChange={e => setOddsDraw(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid #444', backgroundColor: '#222', color: '#fff', boxSizing: 'border-box' }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', marginBottom: '5px', color: '#ccc' }}>Odds (Away - W2)</label>
+                <input type="number" step="0.01" value={oddsAway} onChange={e => setOddsAway(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid #444', backgroundColor: '#222', color: '#fff', boxSizing: 'border-box' }} />
+              </div>
+            </div>
+            <button type="submit" style={{ width: '100%', padding: '12px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold', fontSize: '16px' }}>ጨዋታ አስገባ</button>
+          </form>
+        </div>
+      )}
+
       {/* የጨዋታ ውጤቶች ገጽ */}
       {activeTab === 'results' && (
         <div>
           <h3>የጨዋታ ውጤቶችን አስገባ</h3>
-          {matches.length === 0 ? <p>ምንም የሚጠበቅ ጨዋታ የለም።</p> : (
+          {matches.length === 0 ? <p style={{ color: '#aaa' }}>ምንም የሚጠበቅ ጨዋታ የለም።</p> : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               {matches.map(match => (
-                <div key={match.id} style={{ backgroundColor: '#16213e', padding: '15px', borderRadius: '10px' }}>
-                  <h4 style={{ textAlign: 'center', margin: '0 0 15px 0' }}>{match.home_team} vs {match.away_team}</h4>
+                <div key={match.id} style={{ backgroundColor: '#16213e', padding: '15px', borderRadius: '10px', border: '1px solid #333' }}>
+                  <p style={{ margin: '0 0 5px 0', fontSize: '12px', color: '#aaa' }}>🏆 {match.league}</p>
+                  <h4 style={{ textAlign: 'center', margin: '0 0 15px 0', fontSize: '18px' }}>{match.home_team} vs {match.away_team}</h4>
                   <div style={{ display: 'flex', gap: '10px' }}>
-                    <button onClick={() => handleMatchResult(match.id, 'home_win')} style={{ flex: 1, padding: '10px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>{match.home_team} አሸነፈ</button>
-                    <button onClick={() => handleMatchResult(match.id, 'draw')} style={{ flex: 1, padding: '10px', backgroundColor: '#ff9800', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>አቻ ሆነ (Draw)</button>
-                    <button onClick={() => handleMatchResult(match.id, 'away_win')} style={{ flex: 1, padding: '10px', backgroundColor: '#2196F3', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>{match.away_team} አሸነፈ</button>
+                    <button onClick={() => handleMatchResult(match.id, 'home_win')} style={{ flex: 1, padding: '10px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>{match.home_team} አሸነፈ</button>
+                    <button onClick={() => handleMatchResult(match.id, 'draw')} style={{ flex: 1, padding: '10px', backgroundColor: '#ff9800', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>አቻ ሆነ (Draw)</button>
+                    <button onClick={() => handleMatchResult(match.id, 'away_win')} style={{ flex: 1, padding: '10px', backgroundColor: '#2196F3', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>{match.away_team} አሸነፈ</button>
                   </div>
                 </div>
               ))}
