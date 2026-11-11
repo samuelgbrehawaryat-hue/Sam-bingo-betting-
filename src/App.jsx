@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase.js";
+import Football from './Football.jsx';
+import Wallet from './Wallet.jsx';
+import AdminPanel from './AdminPanel.jsx';
 
 export default function App() {
   const [tab, setTab] = useState("home");
@@ -12,6 +15,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [players, setPlayers] = useState([]);
   const [playersError, setPlayersError] = useState("");
+
   useEffect(() => {
     if (!supabase) {
       setLoading(false);
@@ -58,7 +62,8 @@ export default function App() {
       active = false;
     };
   }, [session]);
-    useEffect(() => {
+
+  useEffect(() => {
     if (!isAdmin || !supabase) {
       setPlayers([]);
       return;
@@ -81,8 +86,6 @@ export default function App() {
 
     loadPlayers();
   }, [isAdmin]);
-
-  
 
   async function signUp() {
     if (!supabase) {
@@ -125,30 +128,10 @@ export default function App() {
   }
 
   const games = [
-    {
-      id: "bingo",
-      name: "BINGO",
-      icon: "🎯",
-      desc: "የBingo ጨዋታ"
-    },
-    {
-      id: "keno",
-      name: "KENO",
-      icon: "🎲",
-      desc: "የKeno ጨዋታ"
-    },
-    {
-      id: "aviator",
-      name: "AVIATOR",
-      icon: "✈️",
-      desc: "የAviator ጨዋታ"
-    },
-    {
-      id: "football",
-      name: "FOOTBALL",
-      icon: "⚽",
-      desc: "የእግር ኳስ"
-    }
+    { id: "bingo", name: "BINGO", icon: "🎯", desc: "የBingo ጨዋታ" },
+    { id: "keno", name: "KENO", icon: "🎲", desc: "የKeno ጨዋታ" },
+    { id: "aviator", name: "AVIATOR", icon: "✈️", desc: "የAviator ጨዋታ" },
+    { id: "football", name: "FOOTBALL", icon: "⚽", desc: "የእግር ኳስ" }
   ];
 
   if (loading) {
@@ -256,83 +239,99 @@ export default function App() {
             <p>{session.user.email}</p>
           </section>
 
-          {isAdmin && (
-            <section className="panel">
-              <h2>ADMIN PANEL</h2>
-              <p>የባለቤት መቆጣጠሪያ ክፍል</p>
-<h3>የተመዘገቡ ተጫዋቾች</h3>
-              
-{playersError && (
-  <p className="message">{playersError}</p>
-)}
+          {/* የገጽ ማሳያ ክፍል (Tabs) */}
+          {tab === "home" && (
+            <>
+              {isAdmin && (
+                <section className="panel">
+                  <h2>ADMIN PANEL</h2>
+                  <p>የባለቤት መቆጣጠሪያ ክፍል</p>
+                  <h3>የተመዘገቡ ተጫዋቾች</h3>
+                  
+                  {playersError && (
+                    <p className="message">{playersError}</p>
+                  )}
 
-{players.length === 0 ? (
-  <p>ምንም ተጫዋች አልተገኘም።</p>
-) : (
-  <div>
-    {players.map((player, index) => (
-      <div className="panel" key={player.public_user_id}>
-        <h3>ተጫዋች #{index + 1}</h3>
-        <p>መለያ: {player.public_user_id}</p>
-        <p>ስም: {player.display_name || "አልተገለጸም"}</p>
-        <p>Email: {player.email || "የለም"}</p>
-        <small>
-          የተመዘገበበት: {new Date(player.created_at).toLocaleString()}
-        </small>
-      </div>
-    ))}
-  </div>
-)}
-            </section>
+                  {players.length === 0 ? (
+                    <p>ምንም ተጫዋች አልተገኘም።</p>
+                  ) : (
+                    <div>
+                      {players.map((player, index) => (
+                        <div className="panel" key={player.public_user_id}>
+                          <h3>ተጫዋች #{index + 1}</h3>
+                          <p>መለያ: {player.public_user_id}</p>
+                          <p>ስም: {player.display_name || "አልተገለጸም"}</p>
+                          <p>Email: {player.email || "የለም"}</p>
+                          <small>
+                            የተመዘገበበት: {new Date(player.created_at).toLocaleString()}
+                          </small>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
+              )}
+
+              <section className="panel">
+                <h2>የተጫዋች ዳሽቦርድ</h2>
+
+                <div className="tiles">
+                  <div className="panel">
+                    <h3>ባላንስ</h3>
+                    <h2>0 ETB</h2>
+                    <small>የሙከራ ማሳያ ብቻ ነው።</small>
+                  </div>
+                </div>
+
+                <h3>ጨዋታ ምረጥ</h3>
+
+                <div className="tiles">
+                  {games.map(game => (
+                    <button
+                      key={game.id}
+                      onClick={() => setTab(game.id)}
+                    >
+                      {game.icon} {game.name}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  className="secondary"
+                  onClick={signOut}
+                >
+                  ውጣ
+                </button>
+              </section>
+            </>
           )}
 
-          <section className="panel">
-            <h2>የተጫዋች ዳሽቦርድ</h2>
-
-            <div className="tiles">
-              <div className="panel">
-                <h3>ባላንስ</h3>
-                <h2>0 ETB</h2>
-                <small>የሙከራ ማሳያ ብቻ ነው።</small>
-              </div>
+          {tab === "football" && <Football user={session.user} />}
+          {tab === "wallet" && <Wallet user={session.user} />}
+          
+          {/* ወደ Home መመለሻ ቁልፍ ለሌሎች ገጾች */}
+          {tab !== "home" && tab !== "bingo" && tab !== "keno" && tab !== "aviator" && (
+            <div style={{ padding: '20px', textAlign: 'center' }}>
+              <button onClick={() => setTab("home")} style={{ padding: '10px 20px', backgroundColor: '#333', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>
+                ← ወደ ዳሽቦርድ ተመለስ
+              </button>
             </div>
+          )}
 
-            <h3>ጨዋታ ምረጥ</h3>
-
-            <div className="tiles">
-              {games.map(game => (
-                <button
-                  key={game.id}
-                  onClick={() => setTab(game.id)}
-                >
-                  {game.icon} {game.name}
-                </button>
-              ))}
+          {tab !== "home" && tab !== "football" && tab !== "wallet" && (
+            <div className="panel">
+              <h2>
+                {games.find(g => g.id === tab)?.name}
+              </h2>
+              <p>
+                ይህ የጨዋታ ክፍል በቀጣይ ይገነባል።
+              </p>
+              <button onClick={() => setTab("home")}>
+                ወደ ዳሽቦርድ ተመለስ
+              </button>
             </div>
+          )}
 
-            {tab !== "home" && (
-              <div className="panel">
-                <h2>
-                  {games.find(g => g.id === tab)?.name}
-                </h2>
-
-                <p>
-                  ይህ የጨዋታ ክፍል በቀጣይ ይገነባል።
-                </p>
-
-                <button onClick={() => setTab("home")}>
-                  ወደ ዳሽቦርድ ተመለስ
-                </button>
-              </div>
-            )}
-
-            <button
-              className="secondary"
-              onClick={signOut}
-            >
-              ውጣ
-            </button>
-          </section>
         </>
       )}
 
