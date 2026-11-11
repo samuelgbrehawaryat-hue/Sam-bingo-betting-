@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "./supabase.js";
+import { supabase } from "./supabase.js"; 
 import Football from './Football.jsx';
 import Wallet from './Wallet.jsx';
 
@@ -17,7 +17,7 @@ export default function App() {
 
   // 1. የተጠቃሚ መግቢያ ሁኔታን መከታተል
   useEffect(() => {
-    if (!supabase) {
+    if (!supabase) { 
       setLoading(false);
       return;
     }
