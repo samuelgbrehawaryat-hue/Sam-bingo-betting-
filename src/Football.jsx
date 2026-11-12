@@ -3,203 +3,177 @@ import { supabase } from './supabase';
 
 export default function Football({ user }) {
   const [matches, setMatches] = useState([]);
-  const [myBets, setMyBets] = useState([]);
-  const [balance, setBalance] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [selectedBets, setSelectedBets] = useState({});
-  const [betAmount, setBetAmount] = useState(50);
+  const [amount, setAmount] = useState(50);
+  const [balance, setBalance] = useState(0);
   const [activeTab, setActiveTab] = useState('matches'); // 'matches' ወይም 'history'
+  const [history, setHistory] = useState([]);
+  const [message, setMessage] = useState('');
 
   useEffect(() => {
-    fetchMatches();
     fetchBalance();
-    fetchMyBets();
+    fetchMatches();
+    fetchHistory();
   }, []);
 
   const fetchBalance = async () => {
+    if (!supabase || !user?.id) return;
     const { data } = await supabase.rpc('get_player_balance', { p_user_id: user.id });
     setBalance(data || 0);
   };
 
   const fetchMatches = async () => {
     setLoading(true);
-    const { data } = await supabase.from('football_matches').select('*').eq('status', 'upcoming');
-    setMatches(data || []);
+    // ሁሉንም ግጥሚያዎች ከዳታቤዝ ማምጣት
+    const { data, error } = await supabase
+      .from('football_matches')
+      .select('*');
+
+    if (error) {
+      console.log("Error fetching matches:", error.message);
+    } else {
+      setMatches(data || []);
+    }
     setLoading(false);
   };
 
-  const fetchMyBets = async () => {
+  const fetchHistory = async () => {
+    if (!supabase || !user?.id) return;
     const { data } = await supabase
       .from('football_bets')
-      .select('*, football_matches(home_team, away_team, league)')
+      .select('*, football_matches(*)')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
-    setMyBets(data || []);
+    setHistory(data || []);
   };
 
-  const handleSelectBet = (matchId, prediction, odds) => {
-    setSelectedBets({ ...selectedBets, [matchId]: { prediction, odds } });
-  };
+  const placeBet = async (matchId, prediction, odds) => {
+    if (amount <= 0) return alert("እባክዎ ትክክለኛ የውርርድ መጠን ያስገቡ።");
+    if (amount > balance) return alert("❌ ባላንስዎ በቂ አይደለም!");
 
-  const placeBet = async (match) => {
-    const bet = selectedBets[match.id];
-    if (!bet) return alert("እባክህ መጀመሪያ ውጤት ምረጥ!");
-    if (betAmount > balance) return alert("❌ ባላንስህ አይበቃም! እባክህ ገንዘብ አስገባ።");
-    if (betAmount <= 0) return alert("ትክክለኛ መጠን አስገባ!");
+    setMessage('ውርርድ በመመዝገብ ላይ...');
 
-    setLoading(true);
-
-    // 1. ገንዘቡን ከባላንስ መቀነስ
-    const { data: success, error: deductError } = await supabase.rpc('deduct_balance', { p_user_id: user.id, p_amount: betAmount });
-
-    if (deductError || !success) {
-      alert("ባላንስ መቀነስ አልተቻለም። እንደገና ሞክር።");
-      setLoading(false);
-      return;
-    }
-
-    // 2. ውርርዱን በዳታቤዝ ውስጥ መመዝገብ
-    const { error: betError } = await supabase.from('football_bets').insert([{
+    const { error } = await supabase.from('football_bets').insert([{
       user_id: user.id,
-      match_id: match.id,
-      prediction: bet.prediction,
-      amount: betAmount,
-      odds: bet.odds,
+      match_id: matchId,
+      prediction: prediction,
+      amount: amount,
+      odds: odds,
       status: 'pending'
     }]);
 
-    if (betError) {
-      alert("ውርርድ መመዝገብ አልተቻለም።");
+    if (error) {
+      setMessage("❌ ውርርዱን መመዝገብ አልተቻለም።");
     } else {
-      alert(`✅ ውርርድዎ ተቀብሏል! ${betAmount} ETB ተቀንሷል።`);
-      setSelectedBets({ ...selectedBets, [match.id]: null });
+      // ከባላንስ ላይ መቀነስ
+      await supabase.rpc('deduct_balance', { p_user_id: user.id, p_amount: amount });
+      setMessage("✅ ውርርዱ ተሳክቷል!");
       fetchBalance();
-      fetchMyBets();
+      fetchHistory();
     }
-    setLoading(false);
   };
 
   return (
-    <div style={{ backgroundColor: '#121212', minHeight: '100vh', paddingBottom: '50px', fontFamily: 'sans-serif', color: '#fff' }}>
+    <div style={{ backgroundColor: '#121212', minHeight: '100vh', padding: '15px', color: '#fff', fontFamily: 'sans-serif' }}>
       
-      {/* ሪፖርት ወይም ታላይ (Header) */}
-      <div style={{ backgroundColor: '#1e1e1e', padding: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #333' }}>
-        <h2 style={{ margin: 0, color: '#ffc107' }}>⚽ የውርርድ ማዕከል</h2>
-        <div style={{ backgroundColor: '#ffc107', color: '#000', padding: '6px 15px', borderRadius: '20px', fontWeight: 'bold', fontSize: '14px' }}>
-          ባላንስ፦ {balance.toFixed(2)} ETB
+      {/* ⚽  തലጌ (Header & Balance) */}
+      <div style={{ backgroundColor: '#1e1e1e', padding: '15px', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', border: '1px solid #333' }}>
+        <div>
+          <h2 style={{ margin: 0, color: '#ffc107', fontSize: '20px' }}>⚽ የውርርድ ማዕከል</h2>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <span style={{ fontSize: '12px', color: '#aaa' }}>ባላንስ:-</span>
+          <h3 style={{ margin: 0, color: '#ffc107' }}>{balance.toFixed(2)} ETB</h3>
         </div>
       </div>
 
-      {/* ታብ ማስተላለፊያ (Tabs: ጨዋታዎች vs የኔ ውርርዶች) */}
-      <div style={{ display: 'flex', backgroundColor: '#1e1e1e', borderBottom: '1px solid #333' }}>
-        <button 
-          onClick={() => setActiveTab('matches')} 
-          style={{ flex: 1, padding: '12px', background: 'none', border: 'none', color: activeTab === 'matches' ? '#ffc107' : '#aaa', fontWeight: 'bold', cursor: 'pointer', borderBottom: activeTab === 'matches' ? '2px solid #ffc107' : 'none' }}>
-          የዛሬ ጨዋታዎች
+      {/* የታብ መቀየሪያ */}
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+        <button onClick={() => setActiveTab('matches')} style={{ flex: 1, padding: '10px', backgroundColor: activeTab === 'matches' ? '#ffc107' : '#222', color: activeTab === 'matches' ? '#000' : '#fff', border: 'none', borderRadius: '5px', fontWeight: 'bold', cursor: 'pointer' }}>
+          የዕለቱ ጨዋታዎች
         </button>
-        <button 
-          onClick={() => setActiveTab('history')} 
-          style={{ flex: 1, padding: '12px', background: 'none', border: 'none', color: activeTab === 'history' ? '#ffc107' : '#aaa', fontWeight: 'bold', cursor: 'pointer', borderBottom: activeTab === 'history' ? '2px solid #ffc107' : 'none' }}>
-          የውርርድ ታሪክ ({myBets.length})
+        <button onClick={() => setActiveTab('history')} style={{ flex: 1, padding: '10px', backgroundColor: activeTab === 'history' ? '#ffc107' : '#222', color: activeTab === 'history' ? '#000' : '#fff', border: 'none', borderRadius: '5px', fontWeight: 'bold', cursor: 'pointer' }}>
+          የውርርድ ታሪክ ({history.length})
         </button>
       </div>
 
-      {activeTab === 'matches' ? (
-        <>
-          {/* የውርርድ መጠን መምረጫ */}
-          <div style={{ padding: '15px', backgroundColor: '#181818', margin: '15px', borderRadius: '10px' }}>
-            <label style={{ fontWeight: 'bold', color: '#ddd', display: 'block', marginBottom: '8px' }}>የውርርድ መጠን (ETB)፦ </label>
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px' }}>
-              <input 
-                type="number" 
-                value={betAmount} 
-                onChange={(e) => setBetAmount(Number(e.target.value))} 
-                style={{ padding: '10px', borderRadius: '5px', border: '1px solid #444', backgroundColor: '#222', color: '#fff', width: '100px', fontSize: '16px' }} 
-              />
-              <div style={{ display: 'flex', gap: '5px' }}>
-                {[50, 100, 250, 500].map((amt) => (
-                  <button key={amt} onClick={() => setBetAmount(amt)} style={{ padding: '8px 12px', backgroundColor: betAmount === amt ? '#ffc107' : '#333', color: betAmount === amt ? '#000' : '#fff', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
-                    {amt}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+      {/* የውርርድ መጠን መምረጫ */}
+      <div style={{ backgroundColor: '#1e1e1e', padding: '12px', borderRadius: '10px', marginBottom: '15px', border: '1px solid #333' }}>
+        <label style={{ display: 'block', fontSize: '13px', color: '#aaa', marginBottom: '5px' }}>የውርርድ መጠን (ETB):-</label>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <input 
+            type="number" 
+            value={amount} 
+            onChange={(e) => setAmount(Number(e.target.value))} 
+            style={{ flex: 1, padding: '8px', borderRadius: '5px', border: '1px solid #444', backgroundColor: '#222', color: '#fff', fontSize: '16px' }} 
+          />
+          {[50, 100, 250, 500].map((amt) => (
+            <button key={amt} type="button" onClick={() => setAmount(amt)} style={{ padding: '8px 12px', backgroundColor: amount === amt ? '#ffc107' : '#333', color: amount === amt ? '#000' : '#fff', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>
+              {amt}
+            </button>
+          ))}
+        </div>
+      </div>
 
-          {/* የጨዋታዎች ዝርዝር */}
+      {message && <p style={{ textAlign: 'center', fontWeight: 'bold', color: '#ffc107' }}>{message}</p>}
+
+      {/* የጨዋታዎች ዝርዝር */}
+      {activeTab === 'matches' && (
+        <div>
           {loading ? (
-            <p style={{ textAlign: 'center', color: '#888' }}>በመጫን ላይ...</p>
+            <p style={{ textAlign: 'center', color: '#aaa' }}>ጨዋታዎችን በመጫን ላይ...</p>
           ) : matches.length === 0 ? (
-            <p style={{ textAlign: 'center', padding: '20px', color: '#888' }}>አሁን ምንም የሚጫወቱ ጨዋታዎች የሉም።</p>
+            <p style={{ textAlign: 'center', color: '#aaa' }}>አሁን ምንም የሚጫወቱ ጨዋታዎች የሉም።</p>
           ) : (
-            <div style={{ padding: '0 15px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {matches.map((match) => (
-                <div key={match.id} style={{ backgroundColor: '#1e1e1e', borderRadius: '10px', marginBottom: '15px', padding: '15px', border: '1px solid #333' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#aaa', marginBottom: '10px' }}>
-                    <span>🏆 {match.league}</span>
-                    <span>🕒 ዛሬ</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', fontWeight: 'bold', color: '#fff', fontSize: '16px' }}>
-                    <span>{match.home_team}</span>
-                    <span style={{ color: '#666' }}>VS</span>
-                    <span>{match.away_team}</span>
-                  </div>
+                <div key={match.id} style={{ backgroundColor: '#1e1e1e', padding: '15px', borderRadius: '10px', border: '1px solid #333' }}>
+                  <p style={{ margin: '0 0 5px 0', fontSize: '11px', color: '#ffc107', textTransform: 'uppercase' }}>🏆 {match.league || 'General'}</p>
+                  <h4 style={{ textAlign: 'center', margin: '0 0 12px 0', fontSize: '16px' }}>{match.home_team} vs {match.away_team}</h4>
+                  
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    <button onClick={() => handleSelectBet(match.id, 'home_win', match.odds_home)} style={{ flex: 1, padding: '10px', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold', backgroundColor: selectedBets[match.id]?.prediction === 'home_win' ? '#ffc107' : '#2a2a2a', color: selectedBets[match.id]?.prediction === 'home_win' ? '#000' : '#fff' }}>
-                      <span style={{ display: 'block', fontSize: '10px', color: selectedBets[match.id]?.prediction === 'home_win' ? '#333' : '#aaa' }}>W1</span>
-                      {match.odds_home.toFixed(2)}
+                    <button onClick={() => placeBet(match.id, 'home_win', match.odds_home || 2.0)} style={{ flex: 1, padding: '10px 5px', backgroundColor: '#2a2a2a', border: '1px solid #444', borderRadius: '5px', color: '#fff', cursor: 'pointer', textAlign: 'center' }}>
+                      <div style={{ fontSize: '12px', color: '#aaa' }}>1 (W1)</div>
+                      <div style={{ fontWeight: 'bold', color: '#4CAF50' }}>{match.odds_home || 2.0}</div>
                     </button>
-                    <button onClick={() => handleSelectBet(match.id, 'draw', match.odds_draw)} style={{ flex: 1, padding: '10px', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold', backgroundColor: selectedBets[match.id]?.prediction === 'draw' ? '#ffc107' : '#2a2a2a', color: selectedBets[match.id]?.prediction === 'draw' ? '#000' : '#fff' }}>
-                      <span style={{ display: 'block', fontSize: '10px', color: selectedBets[match.id]?.prediction === 'draw' ? '#333' : '#aaa' }}>X</span>
-                      {match.odds_draw.toFixed(2)}
+                    <button onClick={() => placeBet(match.id, 'draw', match.odds_draw || 3.0)} style={{ flex: 1, padding: '10px 5px', backgroundColor: '#2a2a2a', border: '1px solid #444', borderRadius: '5px', color: '#fff', cursor: 'pointer', textAlign: 'center' }}>
+                      <div style={{ fontSize: '12px', color: '#aaa' }}>X (Draw)</div>
+                      <div style={{ fontWeight: 'bold', color: '#ff9800' }}>{match.odds_draw || 3.0}</div>
                     </button>
-                    <button onClick={() => handleSelectBet(match.id, 'away_win', match.odds_away)} style={{ flex: 1, padding: '10px', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold', backgroundColor: selectedBets[match.id]?.prediction === 'away_win' ? '#ffc107' : '#2a2a2a', color: selectedBets[match.id]?.prediction === 'away_win' ? '#000' : '#fff' }}>
-                      <span style={{ display: 'block', fontSize: '10px', color: selectedBets[match.id]?.prediction === 'away_win' ? '#333' : '#aaa' }}>W2</span>
-                      {match.odds_away.toFixed(2)}
+                    <button onClick={() => placeBet(match.id, 'away_win', match.odds_away || 2.5)} style={{ flex: 1, padding: '10px 5px', backgroundColor: '#2a2a2a', border: '1px solid #444', borderRadius: '5px', color: '#fff', cursor: 'pointer', textAlign: 'center' }}>
+                      <div style={{ fontSize: '12px', color: '#aaa' }}>2 (W2)</div>
+                      <div style={{ fontWeight: 'bold', color: '#2196F3' }}>{match.odds_away || 2.5}</div>
                     </button>
                   </div>
-                  {selectedBets[match.id] && (
-                    <button onClick={() => placeBet(match)} style={{ width: '100%', marginTop: '12px', padding: '12px', backgroundColor: '#4CAF50', color: '#fff', border: 'none', borderRadius: '5px', fontWeight: 'bold', cursor: 'pointer', fontSize: '15px' }}>
-                      ውረድ (Bet {betAmount} ETB - ሊያወጣ የሚችለው: {(betAmount * selectedBets[match.id].odds).toFixed(2)} ETB)
-                    </button>
-                  )}
                 </div>
               ))}
             </div>
           )}
-        </>
-      ) : (
-        /* የውርርድ ታሪክ ማሳያ ክፍል */
-        <div style={{ padding: '15px' }}>
-          {myBets.length === 0 ? (
-            <p style={{ textAlign: 'center', color: '#888', padding: '20px' }}>እስካሁን ያደረጉት ውርርድ የለም።</p>
+        </div>
+      )}
+
+      {/* የውርርድ ታሪክ */}
+      {activeTab === 'history' && (
+        <div>
+          {history.length === 0 ? (
+            <p style={{ textAlign: 'center', color: '#aaa' }}>ምንም የውርርድ ታሪክ የለም።</p>
           ) : (
-            myBets.map((bet) => (
-              <div key={bet.id} style={{ backgroundColor: '#1e1e1e', borderRadius: '10px', marginBottom: '12px', padding: '15px', border: '1px solid #333' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span style={{ fontWeight: 'bold', color: '#fff' }}>
-                    {bet.football_matches?.home_team} vs {bet.football_matches?.away_team}
-                  </span>
-                  <span style={{ 
-                    padding: '3px 8px', 
-                    borderRadius: '5px', 
-                    fontSize: '11px', 
-                    fontWeight: 'bold',
-                    backgroundColor: bet.status === 'won' ? '#2e7d32' : bet.status === 'lost' ? '#c62828' : '#ef6c00',
-                    color: '#fff'
-                  }}>
-                    {bet.status.toUpperCase()}
-                  </span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {history.map((bet) => (
+                <div key={bet.id} style={{ backgroundColor: '#1e1e1e', padding: '12px', borderRadius: '8px', border: '1px solid #333', fontSize: '14px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                    <b style={{ color: '#fff' }}>{bet.football_matches ? `${bet.football_matches.home_team} vs ${bet.football_matches.away_team}` : 'ጨዋታ'}</b>
+                    <span style={{ color: bet.status === 'won' ? '#4CAF50' : bet.status === 'lost' ? '#f44336' : '#ffc107', textTransform: 'uppercase', fontWeight: 'bold', fontSize: '12px' }}>{bet.status}</span>
+                  </div>
+                  <p style={{ margin: '3px 0', color: '#aaa', fontSize: '12px' }}>ምርጫ: {bet.prediction} (Odds: {bet.odds})</p>
+                  <p style={{ margin: '3px 0', color: '#ffc107', fontWeight: 'bold' }}>መጠን: {bet.amount} ETB</p>
                 </div>
-                <div style={{ fontSize: '13px', color: '#aaa', display: 'flex', justifyContent: 'space-between' }}>
-                  <span>ምርጫ: <b>{bet.prediction}</b> (Odds: {bet.odds})</span>
-                  <span>መጠን: <b>{bet.amount} ETB</b></span>
-                </div>
-              </div>
-            ))
+              ))}
+            </div>
           )}
         </div>
       )}
+
     </div>
   );
 }
